@@ -1,0 +1,143 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import {
+  DEFAULT_CURSOR_CAP_USD,
+  DEFAULT_GATEWAY,
+  cursorDbPath,
+  gatewayKeyFilePath,
+  quotaAxiBin,
+  resolveCursorCapUsd,
+  resolveGatewayBase,
+  resolveGatewayKey,
+  resolveJson,
+} from "./config.js";
+
+const ENV_VARS = [
+  "SPEND_AXI_GATEWAY",
+  "SPEND_AXI_GATEWAY_KEY",
+  "LITELLM_MASTER_KEY",
+  "SPEND_AXI_CURSOR_CAP_USD",
+  "SPEND_AXI_JSON",
+  "SPEND_AXI_CONFIG_DIR",
+  "SPEND_AXI_CURSOR_DB",
+  "SPEND_AXI_QUOTA_BIN",
+];
+const saved: Record<string, string | undefined> = {};
+const NO_KEY_FILE = join(tmpdir(), "spend-axi-nonexistent-gateway-key");
+
+beforeAll(() => {
+  for (const key of ENV_VARS) {
+    saved[key] = process.env[key];
+    delete process.env[key];
+  }
+  process.env["SPEND_AXI_CONFIG_DIR"] = NO_KEY_FILE;
+});
+
+afterAll(() => {
+  for (const key of ENV_VARS) {
+    if (saved[key] === undefined) delete process.env[key];
+    else process.env[key] = saved[key];
+  }
+});
+
+beforeEach(() => {
+  for (const key of ENV_VARS) delete process.env[key];
+  process.env["SPEND_AXI_CONFIG_DIR"] = NO_KEY_FILE;
+});
+
+describe("resolveGatewayBase", () => {
+  it("flag wins over env and default", () => {
+    process.env["SPEND_AXI_GATEWAY"] = "http://env:4000";
+    expect(resolveGatewayBase("http://flag:4000")).toBe("http://flag:4000");
+  });
+  it("env wins over default", () => {
+    process.env["SPEND_AXI_GATEWAY"] = "http://env:4000";
+    expect(resolveGatewayBase()).toBe("http://env:4000");
+  });
+  it("falls back to default", () => {
+    expect(resolveGatewayBase()).toBe(DEFAULT_GATEWAY);
+    expect(DEFAULT_GATEWAY).toBe("http://127.0.0.1:4000");
+  });
+});
+
+describe("resolveCursorCapUsd", () => {
+  it("flag wins", () => {
+    process.env["SPEND_AXI_CURSOR_CAP_USD"] = "30";
+    expect(resolveCursorCapUsd("60")).toBe(60);
+  });
+  it("env fallback", () => {
+    process.env["SPEND_AXI_CURSOR_CAP_USD"] = "75";
+    expect(resolveCursorCapUsd()).toBe(75);
+  });
+  it("default 50", () => {
+    expect(resolveCursorCapUsd()).toBe(DEFAULT_CURSOR_CAP_USD);
+    expect(DEFAULT_CURSOR_CAP_USD).toBe(50);
+  });
+  it("rejects non-numeric via config layer (returns NaN guard)", () => {
+    // resolveCursorCapUsd throws on non-finite; context validates earlier
+    expect(() => resolveCursorCapUsd("not-a-number")).toThrow();
+  });
+});
+
+describe("resolveJson", () => {
+  it("flag true wins", () => {
+    expect(resolveJson(true)).toBe(true);
+  });
+  it("env 1/true/yes", () => {
+    for (const v of ["1", "true", "YES", "True"]) {
+      process.env["SPEND_AXI_JSON"] = v;
+      expect(resolveJson(false)).toBe(true);
+      delete process.env["SPEND_AXI_JSON"];
+    }
+  });
+  it("default false", () => {
+    expect(resolveJson(false)).toBe(false);
+  });
+});
+
+describe("resolveGatewayKey", () => {
+  it("SPEND_AXI_GATEWAY_KEY wins over LITELLM_MASTER_KEY", () => {
+    process.env["LITELLM_MASTER_KEY"] = "sk-master";
+    process.env["SPEND_AXI_GATEWAY_KEY"] = "sk-spend";
+    expect(resolveGatewayKey()).toBe("sk-spend");
+  });
+  it("LITELLM_MASTER_KEY fallback", () => {
+    process.env["LITELLM_MASTER_KEY"] = "sk-master";
+    expect(resolveGatewayKey()).toBe("sk-master");
+  });
+  it("token file fallback", () => {
+    const dir = mkdtempSync(join(tmpdir(), "spend-axi-"));
+    try {
+      writeFileSync(join(dir, "gateway-key"), "sk-from-file\n");
+      process.env["SPEND_AXI_CONFIG_DIR"] = dir;
+      expect(resolveGatewayKey()).toBe("sk-from-file");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+  it("undefined when nothing present", () => {
+    expect(resolveGatewayKey()).toBeUndefined();
+  });
+});
+
+describe("paths", () => {
+  it("gatewayKeyFilePath respects config dir", () => {
+    process.env["SPEND_AXI_CONFIG_DIR"] = "/custom/dir";
+    expect(gatewayKeyFilePath()).toBe(join("/custom/dir", "gateway-key"));
+  });
+  it("cursorDbPath defaults to ~/.cursor", () => {
+    delete process.env["SPEND_AXI_CURSOR_DB"];
+    expect(cursorDbPath()).toContain(".cursor/ai-tracking/ai-code-tracking.db");
+  });
+  it("cursorDbPath env override", () => {
+    process.env["SPEND_AXI_CURSOR_DB"] = "/tmp/custom.db";
+    expect(cursorDbPath()).toBe("/tmp/custom.db");
+  });
+  it("quotaAxiBin default + env override", () => {
+    expect(quotaAxiBin()).toBe("quota-axi");
+    process.env["SPEND_AXI_QUOTA_BIN"] = "/tmp/fake-quota";
+    expect(quotaAxiBin()).toBe("/tmp/fake-quota");
+  });
+});

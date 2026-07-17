@@ -1,0 +1,59 @@
+{
+  "name": "spend-axi",
+  "version": "0.1.0",
+  "description": "AXI-compliant spend-posture CLI — one compact snapshot of subscription windows + LiteLLM gateway daily spend + Cursor on-demand daily spend. Token-efficient TOON output.",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kunchenguid/axi-tools.git",
+    "directory": "packages/spend-axi"
+  },
+  "keywords": [
+    "spend",
+    "litellm",
+    "cursor",
+    "quota",
+    "cli",
+    "agent",
+    "axi",
+    "toon"
+  ],
+  "bin": {
+    "spend-axi": "./dist/bin/spend-axi.js"
+  },
+  "files": [
+    "dist",
+    "skills/spend-axi",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "build:skill": "node -e \"import('./dist/src/skill.js').then(m=>{const fs=require('fs');fs.mkdirSync('skills/spend-axi',{recursive:true});fs.writeFileSync('skills/spend-axi/SKILL.md',m.createSkillMarkdown()+'\\n');console.log('wrote skills/spend-axi/SKILL.md');})\"",
+    "dev": "tsx bin/spend-axi.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings=0"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@toon-format/toon": "^2.1.0",
+    "axi-sdk-js": "^0.1.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.0.0",
+    "eslint": "^10.7.0",
+    "globals": "^17.7.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "^3.0.0"
+  }
+}
