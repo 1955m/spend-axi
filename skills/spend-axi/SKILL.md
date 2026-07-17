@@ -32,11 +32,14 @@ Use spend-axi whenever a task needs a spend/quota/gateway snapshot: the daily ga
 6. Point at another gateway: `npx -y spend-axi --gateway http://127.0.0.1:4000 gateway`.
 7. Every response ends with contextual next-step hints under `help:` - follow them.
 
+### Session hooks (ambient context)
+8. Install SessionStart hooks so every agent session boots with the spend-axi snapshot: `npx -y spend-axi setup hooks` (installs Claude Code, Codex, and OpenCode ambient context; idempotent, explicit opt-in only).
+
 ## Commands
 
 ```
-commands[3]:
-  (none)=snapshot, gateway, cursor
+commands[4]:
+  (none)=snapshot, gateway, cursor, setup
 ```
 
 Installed copies also inherit the SDK built-in `update` command.

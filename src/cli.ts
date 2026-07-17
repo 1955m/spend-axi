@@ -2,15 +2,12 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runAxiCli } from "axi-sdk-js";
-import {
-  parseContextArgs,
-  resolveSpendContext,
-  type SpendContext,
-} from "./context.js";
+import { parseContextArgs, resolveSpendContext, type SpendContext } from "./context.js";
 import { createSkillMarkdown } from "./skill.js";
 import { homeCommand, HOME_HELP } from "./commands/home.js";
 import { gatewayCommand, GATEWAY_HELP } from "./commands/gateway.js";
 import { cursorCommand, CURSOR_HELP } from "./commands/cursor.js";
+import { setupCommand, SETUP_HELP } from "./commands/setup.js";
 import { DEFAULT_GATEWAY, DEFAULT_CURSOR_CAP_USD } from "./config.js";
 
 export const DESCRIPTION =
@@ -19,8 +16,8 @@ export const DESCRIPTION =
 const VERSION = readPackageVersion();
 
 export const TOP_HELP = `usage: spend-axi [command] [args] [flags]
-commands[3]:
-  (none)=snapshot, gateway, cursor
+commands[4]:
+  (none)=snapshot, gateway, cursor, setup
 flags[4]:
   --gateway <url> (default ${DEFAULT_GATEWAY}), --cursor-cap <usd> (default ${DEFAULT_CURSOR_CAP_USD}), --json, --help, -v/-V/--version
 sources:
@@ -33,17 +30,20 @@ examples:
   spend-axi cursor --json
   spend-axi --cursor-cap 60
   spend-axi --gateway http://127.0.0.1:4000 gateway
+  spend-axi setup hooks
 `;
 
 const COMMAND_HELP: Record<string, string> = {
   gateway: GATEWAY_HELP,
   cursor: CURSOR_HELP,
+  setup: SETUP_HELP,
   home: HOME_HELP,
 };
 
 const COMMANDS = {
   gateway: withContext(gatewayCommand),
   cursor: withContext(cursorCommand),
+  setup: withContext(setupCommand),
 };
 
 export interface MainOptions {

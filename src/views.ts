@@ -97,9 +97,7 @@ export function gatewayPlain(view: GatewayView): Record<string, unknown> {
 }
 
 /** Plain gateway provider-budget rows for TOON + --json. */
-export function gatewayProvidersPlain(
-  view: GatewayView,
-): Array<Record<string, unknown>> {
+export function gatewayProvidersPlain(view: GatewayView): Array<Record<string, unknown>> {
   return view.providers.map((p) => ({
     provider: p.name,
     spend_usd: formatUsd(p.spendUsd),

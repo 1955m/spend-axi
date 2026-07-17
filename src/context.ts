@@ -75,10 +75,7 @@ export function parseContextArgs(args: string[]): ContextFlags {
       index++;
       continue;
     }
-    if (
-      arg.startsWith("--cursor-cap=") &&
-      arg.length > "--cursor-cap=".length
-    ) {
+    if (arg.startsWith("--cursor-cap=") && arg.length > "--cursor-cap=".length) {
       cursorCapFlag = arg.slice("--cursor-cap=".length);
       continue;
     }
@@ -105,4 +102,32 @@ export function parseContextArgs(args: string[]): ContextFlags {
   }
 
   return { gatewayFlag, cursorCapFlag, jsonFlag, strippedArgs: stripped };
+}
+
+// ── per-command flag validation (AXI principle 6: fail loud on unknown flags) ─
+
+/**
+ * Flags allowed on every command. --gateway / --cursor-cap / --json are the
+ * global spend selectors (already stripped from args by withContext/
+ * parseContextArgs before a command sees them); --help always passes. All four
+ * are never reported as unknown.
+ */
+const GLOBAL_FLAGS = new Set(["--gateway", "--cursor-cap", "--json", "--help"]);
+
+/**
+ * Reject unknown flags before any dependency call (exit 2). Globals
+ * (--gateway / --cursor-cap / --json, already stripped, plus --help) are always
+ * allowed. Lists the command's valid flags inline so the agent self-corrects in
+ * one turn — mirroring cloudflare-axi's / tg-axi's rejectUnknownFlags.
+ */
+export function rejectUnknownFlags(args: string[], known: string[], commandPath: string): void {
+  for (const arg of args) {
+    if (!arg.startsWith("--")) continue;
+    const name = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+    if (known.includes(name) || GLOBAL_FLAGS.has(name)) continue;
+    throw new AxiError(`unknown flag ${name} for \`${commandPath}\``, "VALIDATION_ERROR", [
+      `valid flags for \`${commandPath}\`: ${[...known, "--help"].join(", ")}`,
+      "(--help always allowed; --gateway / --cursor-cap / --json are global selectors placed after the command)",
+    ]);
+  }
 }

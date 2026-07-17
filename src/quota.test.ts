@@ -11,10 +11,29 @@ const REAL_QUOTA_JSON = JSON.stringify({
       source: "oauth",
       plan: "max",
       windows: [
-        { id: "five_hour", label: "session", kind: "session", percentUsed: 12, percentRemaining: 88, resetsAt: "2026-07-17T06:20:00.245923+00:00" },
-        { id: "seven_day", label: "week", kind: "weekly", percentUsed: 18, percentRemaining: 82, resetsAt: "2026-07-22T00:00:00.245944+00:00" },
+        {
+          id: "five_hour",
+          label: "session",
+          kind: "session",
+          percentUsed: 12,
+          percentRemaining: 88,
+          resetsAt: "2026-07-17T06:20:00.245923+00:00",
+        },
+        {
+          id: "seven_day",
+          label: "week",
+          kind: "weekly",
+          percentUsed: 18,
+          percentRemaining: 82,
+          resetsAt: "2026-07-22T00:00:00.245944+00:00",
+        },
       ],
-      state: { status: "fresh", stale: false, refreshedAt: "2026-07-17T02:57:21.385Z", sourcesTried: ["oauth"] },
+      state: {
+        status: "fresh",
+        stale: false,
+        refreshedAt: "2026-07-17T02:57:21.385Z",
+        sourcesTried: ["oauth"],
+      },
     },
     {
       provider: "codex",
@@ -30,7 +49,11 @@ const REAL_QUOTA_JSON = JSON.stringify({
       label: "Cursor",
       source: "unavailable",
       windows: [],
-      state: { status: "auth_required", error: "Cursor sign-in required", sourcesTried: ["state-vscdb"] },
+      state: {
+        status: "auth_required",
+        error: "Cursor sign-in required",
+        sourcesTried: ["state-vscdb"],
+      },
     },
   ],
 });

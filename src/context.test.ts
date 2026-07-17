@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   parseContextArgs,
+  rejectUnknownFlags,
   requireGatewayKey,
   resolveSpendContext,
   type SpendContext,
@@ -102,5 +103,49 @@ describe("requireGatewayKey", () => {
       gatewayBase: "http://h",
       gatewayKey: "sk-x",
     });
+  });
+});
+
+describe("rejectUnknownFlags (AXI P6: fail loud on unknown flags)", () => {
+  it("passes silently when every flag is known", () => {
+    expect(() => rejectUnknownFlags(["--json"], ["--json"], "gateway")).not.toThrow();
+  });
+
+  it("allows the --gateway / --cursor-cap / --json / --help globals even when not declared known", () => {
+    expect(() =>
+      rejectUnknownFlags(
+        ["--gateway", "http://h", "--cursor-cap", "60", "--json", "--help"],
+        [],
+        "gateway",
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects an unknown flag by name with VALIDATION_ERROR + the valid-flag list", () => {
+    let err: unknown;
+    try {
+      rejectUnknownFlags(["--bogus"], [], "cursor");
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toMatchObject({ code: "VALIDATION_ERROR" });
+    expect((err as Error).message).toContain("unknown flag --bogus");
+    expect((err as Error).message).toContain("`cursor`");
+    const suggestions = (err as { suggestions?: string[] }).suggestions ?? [];
+    expect(suggestions.some((s) => s.includes("--help"))).toBe(true);
+  });
+
+  it("extracts the flag name from --flag=value form before rejecting", () => {
+    let err: unknown;
+    try {
+      rejectUnknownFlags(["--bogus=1"], [], "gateway");
+    } catch (e) {
+      err = e;
+    }
+    expect((err as Error).message).toContain("unknown flag --bogus");
+  });
+
+  it("leaves positional (non-dash) args alone", () => {
+    expect(() => rejectUnknownFlags(["hooks"], [], "setup hooks")).not.toThrow();
   });
 });

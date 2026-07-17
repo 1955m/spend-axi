@@ -1,10 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import {
-  getGlobalSpendToday,
-  getHealth,
-  getProviderBudgets,
-  setFetchImpl,
-} from "./gateway.js";
+import { getGlobalSpendToday, getHealth, getProviderBudgets, setFetchImpl } from "./gateway.js";
 
 interface MockResponse {
   status: number;
@@ -20,8 +15,7 @@ function makeResponse(spec: MockResponse): Response {
 }
 
 type FetchSpec =
-  | MockResponse
-  | ((url: string, init: RequestInit) => MockResponse | Promise<MockResponse>);
+  MockResponse | ((url: string, init: RequestInit) => MockResponse | Promise<MockResponse>);
 
 function mockFetch(spec: FetchSpec): typeof fetch {
   const fn = (url: string, init: RequestInit): Promise<Response> => {
@@ -41,18 +35,20 @@ afterEach(() => {
 describe("getHealth", () => {
   it("parses a healthy readiness response (no auth header)", async () => {
     let captured: RequestInit | undefined;
-    globalThis.fetch = (((_url: string, init: RequestInit) => {
+    globalThis.fetch = ((_url: string, init: RequestInit) => {
       captured = init;
-      return Promise.resolve(makeResponse({ status: 200, body: JSON.stringify({ status: "healthy", db: "connected" }) }));
-    }) as unknown) as typeof fetch;
+      return Promise.resolve(
+        makeResponse({ status: 200, body: JSON.stringify({ status: "healthy", db: "connected" }) }),
+      );
+    }) as unknown as typeof fetch;
     const h = await getHealth("http://h:4000");
     expect(h).toEqual({ reachable: true, status: "healthy", db: "connected" });
     // health must NOT send an Authorization header
     expect((captured!.headers as Record<string, string>)["Authorization"]).toBeUndefined();
   });
   it("returns unreachable on fetch throw", async () => {
-    globalThis.fetch = (((_url: string, _init: RequestInit) =>
-      Promise.reject(new Error("ECONNREFUSED"))) as unknown) as typeof fetch;
+    globalThis.fetch = ((_url: string, _init: RequestInit) =>
+      Promise.reject(new Error("ECONNREFUSED"))) as unknown as typeof fetch;
     const h = await getHealth("http://127.0.0.1:1");
     expect(h.reachable).toBe(false);
     expect(h.status).toBe("unreachable");
@@ -67,7 +63,7 @@ describe("getHealth", () => {
 describe("getProviderBudgets", () => {
   it("sends Bearer key and returns the providers map", async () => {
     let captured: { url: string; auth?: string } | undefined;
-    globalThis.fetch = (((url: string, init: RequestInit) => {
+    globalThis.fetch = ((url: string, init: RequestInit) => {
       const headers = init.headers as Record<string, string>;
       captured = { url, auth: headers["Authorization"] };
       return Promise.resolve(
@@ -75,13 +71,18 @@ describe("getProviderBudgets", () => {
           status: 200,
           body: JSON.stringify({
             providers: {
-              openai: { budget_limit: 200, spend: 131.21, time_period: "1d", budget_reset_at: "2083-01-30" },
+              openai: {
+                budget_limit: 200,
+                spend: 131.21,
+                time_period: "1d",
+                budget_reset_at: "2083-01-30",
+              },
               azure: { budget_limit: 75, spend: 0.22, time_period: "1d", budget_reset_at: null },
             },
           }),
         }),
       );
-    }) as unknown) as typeof fetch;
+    }) as unknown as typeof fetch;
     const providers = await getProviderBudgets("http://h", "sk-master");
     expect(captured!.url).toBe("http://h/provider/budgets");
     expect(captured!.auth).toBe("Bearer sk-master");
@@ -133,7 +134,9 @@ describe("getGlobalSpendToday", () => {
       status: 500,
       body: JSON.stringify({ error: { message: "boom" } }),
     });
-    await expect(getGlobalSpendToday("http://h", "sk-master", { today: "2026-07-17" })).rejects.toMatchObject({
+    await expect(
+      getGlobalSpendToday("http://h", "sk-master", { today: "2026-07-17" }),
+    ).rejects.toMatchObject({
       code: "UNKNOWN",
     });
   });

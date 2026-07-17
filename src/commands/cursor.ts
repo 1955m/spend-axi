@@ -1,12 +1,8 @@
 import { encode } from "@toon-format/toon";
-import {
-  buildCursorSnapshot,
-  readCursorActivity,
-  type CursorSnapshot,
-} from "../cursor.js";
+import { buildCursorSnapshot, readCursorActivity, type CursorSnapshot } from "../cursor.js";
 import { cursorPlain } from "../views.js";
 import { renderHelp, renderOutput } from "../toon.js";
-import type { SpendContext } from "../context.js";
+import { rejectUnknownFlags, type SpendContext } from "../context.js";
 
 export const CURSOR_HELP = `usage: spend-axi cursor [flags]
 Cursor on-demand daily spend posture. The captain (2026-07-17) mandates keeping
@@ -23,10 +19,7 @@ examples:
 `;
 
 /** Gather the cursor snapshot (never throws). */
-export function gatherCursor(
-  ctx: SpendContext,
-  today?: string,
-): CursorSnapshot {
+export function gatherCursor(ctx: SpendContext, today?: string): CursorSnapshot {
   const activity = readCursorActivity({ today });
   return buildCursorSnapshot(ctx.cursorCapUsd, activity);
 }
@@ -36,11 +29,9 @@ export function renderCursor(snapshot: CursorSnapshot): string {
   return encode({ cursor: cursorPlain(snapshot) });
 }
 
-export async function cursorCommand(
-  args: string[],
-  ctx: SpendContext,
-): Promise<string> {
+export async function cursorCommand(args: string[], ctx: SpendContext): Promise<string> {
   if (args[0] === "--help") return CURSOR_HELP;
+  rejectUnknownFlags(args, [], "cursor");
   const snapshot = gatherCursor(ctx);
   if (ctx.json) {
     return JSON.stringify(snapshot, null, 2);
@@ -51,11 +42,17 @@ export async function cursorCommand(
 function cursorHints(snapshot: CursorSnapshot): string[] {
   const hints: string[] = [];
   if (!snapshot.activity.dbPresent) {
-    hints.push("No local cursor usage DB found at ~/.cursor/ai-tracking — run cursor-agent once to seed it");
+    hints.push(
+      "No local cursor usage DB found at ~/.cursor/ai-tracking — run cursor-agent once to seed it",
+    );
   } else if (snapshot.activity.error) {
     hints.push("Cursor usage DB present but unreadable: " + snapshot.activity.error);
   }
-  hints.push("Wire a Cursor usage-$ source in src/cursor.ts to activate the $" + snapshot.dailyCapUsd + " daily-cap headroom math");
+  hints.push(
+    "Wire a Cursor usage-$ source in src/cursor.ts to activate the $" +
+      snapshot.dailyCapUsd +
+      " daily-cap headroom math",
+  );
   hints.push("Run `spend-axi` for the full snapshot (subscriptions + gateway + cursor)");
   return hints;
 }

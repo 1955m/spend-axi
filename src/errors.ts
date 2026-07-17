@@ -11,11 +11,7 @@ export { AxiError, exitCodeForError };
  * AUTH_REQUIRED, FORBIDDEN, RATE_LIMITED, NOT_FOUND, TIMEOUT, NETWORK_ERROR,
  * UNKNOWN.
  */
-export function mapGatewayError(
-  status: number,
-  bodyText: string,
-  contextLabel: string,
-): AxiError {
+export function mapGatewayError(status: number, bodyText: string, contextLabel: string): AxiError {
   const parsed = parseBody(bodyText);
   const message = extractMessage(parsed) ?? bodyText.slice(0, 200) ?? `HTTP ${status}`;
   const lower = message.toLowerCase();
@@ -45,11 +41,9 @@ export function mapGatewayError(
     );
   }
   if (status === 429) {
-    return new AxiError(
-      `LiteLLM gateway rate limit (429) for ${contextLabel}`,
-      "RATE_LIMITED",
-      ["Retry shortly — the gateway is throttling admin spend queries"],
-    );
+    return new AxiError(`LiteLLM gateway rate limit (429) for ${contextLabel}`, "RATE_LIMITED", [
+      "Retry shortly — the gateway is throttling admin spend queries",
+    ]);
   }
   if (status >= 500) {
     return new AxiError(
@@ -62,7 +56,9 @@ export function mapGatewayError(
     return new AxiError(
       `LiteLLM Enterprise-only endpoint for ${contextLabel}: ${message}`,
       "FORBIDDEN",
-      ["This endpoint needs a LITELLM_LICENSE; spend-axi uses the open-source spend endpoints instead"],
+      [
+        "This endpoint needs a LITELLM_LICENSE; spend-axi uses the open-source spend endpoints instead",
+      ],
     );
   }
   return new AxiError(
@@ -85,14 +81,10 @@ export function noGatewayKeyError(): AxiError {
 
 /** AxiError thrown when the quota-axi subprocess is missing. */
 export function quotaNotAvailableError(detail: string): AxiError {
-  return new AxiError(
-    `quota-axi unavailable: ${detail}`,
-    "NOT_FOUND",
-    [
-      "Install quota-axi (the local-first subscription-window tracker) and ensure it is on PATH",
-      "Or run `spend-axi gateway` to skip subscriptions and view gateway spend only",
-    ],
-  );
+  return new AxiError(`quota-axi unavailable: ${detail}`, "NOT_FOUND", [
+    "Install quota-axi (the local-first subscription-window tracker) and ensure it is on PATH",
+    "Or run `spend-axi gateway` to skip subscriptions and view gateway spend only",
+  ]);
 }
 
 interface GatewayErrorBody {

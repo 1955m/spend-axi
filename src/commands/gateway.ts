@@ -6,14 +6,9 @@ import {
   type GatewayRequestOptions,
 } from "../gateway.js";
 import { AxiError } from "../errors.js";
-import {
-  gatewayPlain,
-  gatewayProvidersPlain,
-  pctUsed,
-  type GatewayView,
-} from "../views.js";
+import { gatewayPlain, gatewayProvidersPlain, pctUsed, type GatewayView } from "../views.js";
 import { renderHelp, renderOutput } from "../toon.js";
-import type { SpendContext } from "../context.js";
+import { rejectUnknownFlags, type SpendContext } from "../context.js";
 
 export const GATEWAY_HELP = `usage: spend-axi gateway [flags]
 LiteLLM gateway spend posture: today's total spend + per-provider spend vs the
@@ -95,19 +90,14 @@ export function renderGateway(view: GatewayView): string {
   return blocks.join("\n");
 }
 
-export async function gatewayCommand(
-  args: string[],
-  ctx: SpendContext,
-): Promise<string> {
+export async function gatewayCommand(args: string[], ctx: SpendContext): Promise<string> {
   if (args[0] === "--help") return GATEWAY_HELP;
+  rejectUnknownFlags(args, [], "gateway");
   const view = await gatherGateway(ctx);
   if (ctx.json) {
     return JSON.stringify(view, null, 2);
   }
-  return renderOutput([
-    renderGateway(view),
-    renderHelp(gatewayHints(view)),
-  ]);
+  return renderOutput([renderGateway(view), renderHelp(gatewayHints(view))]);
 }
 
 function gatewayHints(view: GatewayView): string[] {

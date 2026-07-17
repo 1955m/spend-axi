@@ -8,6 +8,7 @@ spend-axi gateway               # gateway-only: today's total + per-provider spe
 spend-axi cursor --json         # cursor-only, machine-readable
 spend-axi --cursor-cap 60       # adjust the cursor daily cap for the headline
 spend-axi --gateway http://127.0.0.1:4000 gateway
+spend-axi setup hooks           # install Claude Code / Codex / OpenCode session hooks
 ```
 
 ## Why
@@ -38,15 +39,16 @@ The limited `LITELLM_MCP_KEY` virtual key is read-only and cannot read admin spe
 ## Commands
 
 ```
-commands[3]:
-  (none)=snapshot, gateway, cursor
+commands[4]:
+  (none)=snapshot, gateway, cursor, setup
 ```
 
-| Command | Flags | Notes |
-| --- | --- | --- |
-| `(none)` | `--gateway <url>`, `--cursor-cap <usd>`, `--json` | full snapshot + headline |
-| `gateway` | `--gateway <url>`, `--json` | today's total + per-provider spend vs budget |
-| `cursor` | `--cursor-cap <usd>`, `--json` | cursor daily cap + today's activity (or not-wired) |
+| Command       | Flags                                             | Notes                                                            |
+| ------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
+| `(none)`      | `--gateway <url>`, `--cursor-cap <usd>`, `--json` | full snapshot + headline                                         |
+| `gateway`     | `--gateway <url>`, `--json`                       | today's total + per-provider spend vs budget                     |
+| `cursor`      | `--cursor-cap <usd>`, `--json`                    | cursor daily cap + today's activity (or not-wired)               |
+| `setup hooks` | —                                                 | install/repair Claude Code, Codex, OpenCode `SessionStart` hooks |
 
 Plus the SDK built-in `update` / `update --check`.
 
@@ -61,9 +63,12 @@ All output is [TOON](https://www.npmjs.com/package/@toon-format/toon)-encoded: a
 ```sh
 pnpm install
 pnpm build            # tsc -> dist/
-pnpm test             # vitest (104 tests; unit + in-process integration; fully offline)
+pnpm test             # vitest (116 tests; unit + in-process integration; fully offline)
 pnpm lint             # eslint --max-warnings=0
+pnpm format           # prettier --write .
+pnpm format:check     # prettier --check .
 pnpm build:skill      # regenerate skills/spend-axi/SKILL.md from source
+pnpm docs:check       # build:skill + git diff --exit-code -- skills/ (generated-skill staleness guard)
 pnpm dev <args>       # run via tsx without building
 ```
 
@@ -71,13 +76,13 @@ pnpm dev <args>       # run via tsx without building
 
 ## Architecture
 
-Built on the published [`axi-sdk-js`](https://www.npmjs.com/package/axi-sdk-js) (`runAxiCli` routing/help, `AxiError`/`exitCodeForError`, the `update` built-in) and [`@toon-format/toon`](https://www.npmjs.com/package/@toon-format/toon). The layout mirrors `tg-axi`/`figma-axi`:
+Built on the published [`axi-sdk-js`](https://www.npmjs.com/package/axi-sdk-js) (`runAxiCli` routing/help, `AxiError`/`exitCodeForError`, the `update` built-in, SessionStart hooks) and [`@toon-format/toon`](https://www.npmjs.com/package/@toon-format/toon). The layout mirrors `tg-axi`/`figma-axi`:
 
 ```
 bin/spend-axi.ts          entrypoint
 src/cli.ts               runAxiCli wiring, TOP_HELP, --skill, context (gateway+key+cap+json) resolution, home+json bypass
 src/config.ts            DEFAULT_GATEWAY, DEFAULT_CURSOR_CAP_USD, gateway base+key resolution, cursor DB + quota-axi binary paths
-src/context.ts           SpendContext, parseContextArgs (strip --gateway/--cursor-cap/--json), requireGatewayKey
+src/context.ts           SpendContext, parseContextArgs (strip --gateway/--cursor-cap/--json), rejectUnknownFlags (P6), requireGatewayKey
 src/gateway.ts           LiteLLM gateway fetch client (setFetchImpl seam; getHealth/getProviderBudgets/getGlobalSpendToday; AbortController timeout)
 src/quota.ts             quota-axi --json subprocess (execFile wrapper; injectable runner for tests; normalizeQuota)
 src/cursor.ts            cursor activity reader (node:sqlite); dollar spend flagged not-wired + config hook
@@ -86,7 +91,7 @@ src/toon.ts              field extractors + renderList/renderDetail/renderHelp (
 src/args.ts              generic flag parsing (copied verbatim from tg-axi)
 src/views.ts             pure format helpers + plain-object view builders (shared by home + subcommands)
 src/skill.ts             createSkillMarkdown()
-src/commands/*.ts        home (snapshot), gateway, cursor
+src/commands/*.ts        home (snapshot), gateway, cursor, setup
 skills/spend-axi/SKILL.md shipped skill file for agent-harness auto-loading
 ```
 

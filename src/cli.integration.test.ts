@@ -1,9 +1,18 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { main, DESCRIPTION } from "./cli.js";
 import { createSkillMarkdown } from "./skill.js";
 import { setFetchImpl } from "./gateway.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+
+// Mock the SDK's installSessionStartHooks so the setup-hooks integration test
+// never writes to the real ~/.claude/settings.json, ~/.codex/hooks.json, or
+// ~/.config/opencode/plugins. Real SDK exports (runAxiCli, etc.) are preserved.
+const { installMock } = vi.hoisted(() => ({ installMock: vi.fn() }));
+vi.mock("axi-sdk-js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("axi-sdk-js")>();
+  return { ...actual, installSessionStartHooks: installMock };
+});
 
 const ENV_VARS = [
   "SPEND_AXI_GATEWAY",
@@ -46,6 +55,7 @@ afterEach(() => {
   delete process.env["SPEND_AXI_GATEWAY_KEY"];
   delete process.env["LITELLM_MASTER_KEY"];
   delete process.env["SPEND_AXI_JSON"];
+  installMock.mockReset();
 });
 
 function capture(): { chunks: string[]; stdout: { write: (c: string) => unknown } } {
@@ -71,7 +81,7 @@ describe("main (in-process, offline)", () => {
     await main({ argv: ["--help"], stdout: out.stdout });
     const text = out.chunks.join("");
     expect(text).toContain("usage:");
-    expect(text).toContain("commands[3]:");
+    expect(text).toContain("commands[4]:");
     expect(text).toContain("--gateway");
     expect(text).toContain("--cursor-cap");
     expect(text).toContain("built-in");
@@ -144,6 +154,15 @@ describe("main (in-process, offline)", () => {
     expect(out.chunks.join("")).toContain("Unknown command: bogus");
   });
 
+  it("rejects an unknown flag on a subcommand with VALIDATION_ERROR (P6)", async () => {
+    const out = capture();
+    await main({ argv: ["gateway", "--bogus"], stdout: out.stdout });
+    const text = out.chunks.join("");
+    expect(text).toContain("VALIDATION_ERROR");
+    expect(text).toContain("unknown flag --bogus");
+    expect(text).toContain("`gateway`");
+  });
+
   it("prints SKILL.md for --skill", async () => {
     const out = capture();
     await main({ argv: ["--skill"], stdout: out.stdout });
@@ -154,12 +173,32 @@ describe("main (in-process, offline)", () => {
   });
 });
 
+describe("setup hooks (AXI P7, in-process)", () => {
+  it("installs SessionStart hooks via the SDK", async () => {
+    const out = capture();
+    await main({ argv: ["setup", "hooks"], stdout: out.stdout });
+    const text = out.chunks.join("");
+    expect(installMock).toHaveBeenCalledTimes(1);
+    expect(text).toContain("installed");
+    expect(text).toContain("Claude Code, Codex, OpenCode");
+  });
+
+  it("rejects an unknown flag after `setup hooks` with VALIDATION_ERROR (P6)", async () => {
+    const out = capture();
+    await main({ argv: ["setup", "hooks", "--bogus"], stdout: out.stdout });
+    const text = out.chunks.join("");
+    expect(text).toContain("VALIDATION_ERROR");
+    expect(text).toContain("unknown flag --bogus");
+    expect(installMock).not.toHaveBeenCalled();
+  });
+});
+
 describe("createSkillMarkdown", () => {
   it("includes frontmatter + the commands block + auth notes", () => {
     const md = createSkillMarkdown();
     expect(md).toContain("---\nname: spend-axi");
     expect(md).toContain("category: ops");
-    expect(md).toContain("commands[3]:");
+    expect(md).toContain("commands[4]:");
     expect(md).toContain("npx -y spend-axi");
     expect(md).toContain("SPEND_AXI_GATEWAY_KEY");
     expect(md).toContain("not wired");

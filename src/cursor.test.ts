@@ -34,9 +34,12 @@ function createTestDb(): { dir: string; path: string } {
 }
 
 function insertRow(db: DatabaseSync, model: string, createdAtMs: number): void {
-  db.prepare(
-    "INSERT INTO ai_code_hashes (hash, source, model, createdAt) VALUES (?, ?, ?, ?)",
-  ).run(`h-${createdAtMs}-${model}`, "test", model, createdAtMs);
+  db.prepare("INSERT INTO ai_code_hashes (hash, source, model, createdAt) VALUES (?, ?, ?, ?)").run(
+    `h-${createdAtMs}-${model}`,
+    "test",
+    model,
+    createdAtMs,
+  );
 }
 
 function msForDate(dateStr: string, hour = 12): number {

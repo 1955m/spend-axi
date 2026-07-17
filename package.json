@@ -33,13 +33,16 @@
     "dev": "tsx bin/spend-axi.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docs:check": "pnpm run build:skill && git diff --exit-code -- skills/"
   },
   "license": "MIT",
+  "packageManager": "pnpm@11.9.0",
   "engines": {
     "node": ">=20"
   },
-  "packageManager": "pnpm@11.9.0",
   "dependencies": {
     "@toon-format/toon": "^2.1.0",
     "axi-sdk-js": "^0.1.8"
@@ -49,6 +52,7 @@
     "@types/node": "^22.0.0",
     "eslint": "^10.7.0",
     "globals": "^17.7.0",
+    "prettier": "^3.3.0",
     "tsx": "^4.0.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.64.0",

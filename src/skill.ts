@@ -8,13 +8,7 @@ export const SKILL_DESCRIPTION =
 
 export const SKILL_AUTHOR = "AXI Suite";
 
-export const HERMES_TAGS = [
-  "spend",
-  "litellm",
-  "cursor",
-  "quota",
-  "budget",
-];
+export const HERMES_TAGS = ["spend", "litellm", "cursor", "quota", "budget"];
 
 export const HERMES_CATEGORY = "ops";
 
@@ -66,6 +60,9 @@ Use spend-axi whenever a task needs a spend/quota/gateway snapshot: the daily ga
 5. Adjust the cursor daily cap for the headline: \`npx -y spend-axi --cursor-cap 60\`.
 6. Point at another gateway: \`npx -y spend-axi --gateway http://127.0.0.1:4000 gateway\`.
 7. Every response ends with contextual next-step hints under \`help:\` - follow them.
+
+### Session hooks (ambient context)
+8. Install SessionStart hooks so every agent session boots with the spend-axi snapshot: \`npx -y spend-axi setup hooks\` (installs Claude Code, Codex, and OpenCode ambient context; idempotent, explicit opt-in only).
 
 ## Commands
 

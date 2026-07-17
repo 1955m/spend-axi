@@ -2,11 +2,7 @@ import { encode } from "@toon-format/toon";
 import { runQuotaAxi, type QuotaSnapshot } from "../quota.js";
 import { gatherCursor, renderCursor } from "./cursor.js";
 import { gatherGateway, renderGateway } from "./gateway.js";
-import {
-  formatUsd,
-  subscriptionsPlain,
-  type GatewayView,
-} from "../views.js";
+import { formatUsd, subscriptionsPlain, type GatewayView } from "../views.js";
 import { renderHelp, renderOutput } from "../toon.js";
 import type { SpendContext } from "../context.js";
 import type { CursorSnapshot } from "../cursor.js";
@@ -23,10 +19,7 @@ export const HOME_HELP_PLACEHOLDER = HOME_HELP;
  * with a one-line headline firstmate can relay. Never aborts on a single
  * source failing — each section degrades gracefully.
  */
-export async function homeCommand(
-  _args: string[],
-  ctx: SpendContext,
-): Promise<string> {
+export async function homeCommand(_args: string[], ctx: SpendContext): Promise<string> {
   const [subsResult, gatewayView, cursorSnapshot] = await Promise.all([
     gatherSubscriptions(),
     gatherGateway(ctx),
@@ -65,16 +58,10 @@ async function gatherSubscriptions(): Promise<SubscriptionsResult> {
   }
 }
 
-function buildHeadline(
-  subs: SubscriptionsResult,
-  gw: GatewayView,
-  cursor: CursorSnapshot,
-): string {
+function buildHeadline(subs: SubscriptionsResult, gw: GatewayView, cursor: CursorSnapshot): string {
   const gwPart = gatewayHeadline(gw);
   const cursorPart =
-    cursor.spendUsd === "not wired"
-      ? "cursor not-wired"
-      : `cursor $${cursor.spendUsd}`;
+    cursor.spendUsd === "not wired" ? "cursor not-wired" : `cursor $${cursor.spendUsd}`;
   const subsPart = subscriptionsHeadline(subs);
   return `${gwPart} | ${cursorPart} | ${subsPart}`;
 }
@@ -97,8 +84,7 @@ function subscriptionsHeadline(subs: SubscriptionsResult): string {
   if ("error" in subs) return "subs n/a";
   const claude = subs.providers.find((p) => p.provider === "claude");
   if (claude && claude.windows.length > 0) {
-    const session =
-      claude.windows.find((w) => w.kind === "session") ?? claude.windows[0];
+    const session = claude.windows.find((w) => w.kind === "session") ?? claude.windows[0];
     const rem = session.percentRemaining ?? 0;
     return `claude ${rem}% remaining`;
   }
@@ -109,11 +95,7 @@ function subscriptionsHeadline(subs: SubscriptionsResult): string {
   return "subs ok";
 }
 
-function homeHints(
-  subs: SubscriptionsResult,
-  gw: GatewayView,
-  cursor: CursorSnapshot,
-): string[] {
+function homeHints(subs: SubscriptionsResult, gw: GatewayView, cursor: CursorSnapshot): string[] {
   const hints: string[] = [];
   if ("error" in subs) {
     hints.push("Subscriptions unavailable — run `quota-axi` to diagnose");
@@ -126,7 +108,9 @@ function homeHints(
   if (!cursor.activity.dbPresent) {
     hints.push("No cursor usage DB at ~/.cursor/ai-tracking — activity signal unavailable");
   }
-  hints.push("Run `spend-axi gateway --json` or `spend-axi cursor --json` for focused machine-readable output");
+  hints.push(
+    "Run `spend-axi gateway --json` or `spend-axi cursor --json` for focused machine-readable output",
+  );
   hints.push("Run `spend-axi --cursor-cap 60` to adjust the cursor daily cap for the headline");
   return hints;
 }

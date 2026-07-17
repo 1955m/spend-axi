@@ -99,10 +99,7 @@ export function readCursorActivity(opts: CursorOptions = {}): CursorActivity {
  * is wired in this module; the daily cap is read live from config so headroom
  * math activates the moment `readCursorSpendUsd()` returns a number.
  */
-export function buildCursorSnapshot(
-  dailyCapUsd: number,
-  activity: CursorActivity,
-): CursorSnapshot {
+export function buildCursorSnapshot(dailyCapUsd: number, activity: CursorActivity): CursorSnapshot {
   return {
     spendUsd: NOT_WIRED,
     headroomUsd: NOT_WIRED,

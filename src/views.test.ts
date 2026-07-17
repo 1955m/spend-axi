@@ -70,10 +70,7 @@ describe("nearestResetDate", () => {
   it("earliest reset date YYYY-MM-DD", () => {
     const p: QuotaProvider = {
       provider: "claude",
-      windows: [
-        { resetsAt: "2026-07-22T00:00:00Z" },
-        { resetsAt: "2026-07-17T06:20:00Z" },
-      ],
+      windows: [{ resetsAt: "2026-07-22T00:00:00Z" }, { resetsAt: "2026-07-17T06:20:00Z" }],
     };
     expect(nearestResetDate(p)).toBe("2026-07-17");
   });
@@ -127,7 +124,13 @@ describe("gatewayProvidersPlain", () => {
       ],
     });
     expect(out).toEqual([
-      { provider: "openai", spend_usd: "131.21", budget_usd: 200, pct_used: 66, reset: "2083-01-30" },
+      {
+        provider: "openai",
+        spend_usd: "131.21",
+        budget_usd: 200,
+        pct_used: 66,
+        reset: "2083-01-30",
+      },
       { provider: "cohere", spend_usd: "0.00", budget_usd: 20, pct_used: 0, reset: "—" },
     ]);
   });

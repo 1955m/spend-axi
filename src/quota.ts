@@ -55,7 +55,7 @@ const defaultRunner: QuotaRunner = (args) =>
           resolve({ stdout: "", stderr: "ENOENT", exitCode: 127 });
           return;
         }
-        const rawExit = error ? (error as NodeJS.ErrnoException).code ?? 1 : 0;
+        const rawExit = error ? ((error as NodeJS.ErrnoException).code ?? 1) : 0;
         resolve({
           stdout: stdout ?? "",
           stderr: stderr ?? "",
@@ -72,9 +72,7 @@ const defaultRunner: QuotaRunner = (args) =>
  * NOT_FOUND when quota-axi is not on PATH, UNKNOWN on a non-zero exit / bad
  * JSON.
  */
-export async function runQuotaAxi(
-  runner: QuotaRunner = defaultRunner,
-): Promise<QuotaSnapshot> {
+export async function runQuotaAxi(runner: QuotaRunner = defaultRunner): Promise<QuotaSnapshot> {
   const result = await runner(["--json"]);
   if (result.stderr === "ENOENT") throw quotaNotAvailableError("not on PATH");
   if (result.exitCode !== 0) {

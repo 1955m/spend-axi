@@ -54,15 +54,10 @@ function todayUtc(opts: GatewayRequestOptions): string {
 }
 
 function toFetchError(error: unknown, timeoutMs: number, label: string): AxiError {
-  if (
-    error instanceof Error &&
-    (/abort/i.test(error.name) || error.name === "TimeoutError")
-  ) {
-    return new AxiError(
-      `LiteLLM gateway timed out after ${timeoutMs}ms for ${label}`,
-      "TIMEOUT",
-      ["Retry; the gateway was too slow to respond"],
-    );
+  if (error instanceof Error && (/abort/i.test(error.name) || error.name === "TimeoutError")) {
+    return new AxiError(`LiteLLM gateway timed out after ${timeoutMs}ms for ${label}`, "TIMEOUT", [
+      "Retry; the gateway was too slow to respond",
+    ]);
   }
   return new AxiError(
     `LiteLLM gateway request failed for ${label}: ${
@@ -88,10 +83,7 @@ async function gatewayGet<T>(
   try {
     response = await getFetch()(url, {
       method: "GET",
-      headers:
-        key !== undefined
-          ? { Authorization: `Bearer ${key}` }
-          : {},
+      headers: key !== undefined ? { Authorization: `Bearer ${key}` } : {},
       signal: controller.signal,
     });
   } catch (error) {
@@ -104,10 +96,7 @@ async function gatewayGet<T>(
     throw mapGatewayError(response.status, text, label);
   }
   if (text.length === 0) {
-    throw new AxiError(
-      `LiteLLM gateway returned an empty response for ${label}`,
-      "UNKNOWN",
-    );
+    throw new AxiError(`LiteLLM gateway returned an empty response for ${label}`, "UNKNOWN");
   }
   try {
     return JSON.parse(text) as T;
