@@ -1,12 +1,12 @@
 {
   "name": "spend-axi",
   "version": "0.1.0",
+  "private": true,
   "description": "AXI-compliant spend-posture CLI — one compact snapshot of subscription windows + LiteLLM gateway daily spend + Cursor on-demand daily spend. Token-efficient TOON output.",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kunchenguid/axi-tools.git",
-    "directory": "packages/spend-axi"
+    "url": "https://github.com/1955m/spend-axi.git"
   },
   "keywords": [
     "spend",
@@ -27,9 +27,6 @@
     "README.md",
     "LICENSE"
   ],
-  "publishConfig": {
-    "access": "public"
-  },
   "scripts": {
     "build": "tsc",
     "build:skill": "node -e \"import('./dist/src/skill.js').then(m=>{const fs=require('fs');fs.mkdirSync('skills/spend-axi',{recursive:true});fs.writeFileSync('skills/spend-axi/SKILL.md',m.createSkillMarkdown()+'\\n');console.log('wrote skills/spend-axi/SKILL.md');})\"",
@@ -42,6 +39,7 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@11.9.0",
   "dependencies": {
     "@toon-format/toon": "^2.1.0",
     "axi-sdk-js": "^0.1.8"
