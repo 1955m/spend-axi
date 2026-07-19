@@ -11,7 +11,9 @@ import {
 
 const ENV_VARS = [
   "SPEND_AXI_GATEWAY",
+  "SPEND_AXI_GATEWAY_SOURCE",
   "SPEND_AXI_GATEWAY_KEY",
+  "SPEND_AXI_BIFROST_KEY",
   "LITELLM_MASTER_KEY",
   "SPEND_AXI_CURSOR_CAP_USD",
   "SPEND_AXI_JSON",
@@ -58,6 +60,17 @@ describe("parseContextArgs", () => {
   it("rejects a negative --cursor-cap", () => {
     expect(() => parseContextArgs(["--cursor-cap", "-5"])).toThrow();
   });
+  it("strips --gateway-source in space and equals form", () => {
+    expect(parseContextArgs(["gateway", "--gateway-source", "litellm"]).gatewaySourceFlag).toBe(
+      "litellm",
+    );
+    expect(parseContextArgs(["gateway", "--gateway-source=bifrost"]).gatewaySourceFlag).toBe(
+      "bifrost",
+    );
+  });
+  it("rejects an invalid --gateway-source with VALIDATION_ERROR", () => {
+    expect(() => parseContextArgs(["--gateway-source", "gemini"])).toThrow();
+  });
   it("leaves unknown flags untouched", () => {
     const r = parseContextArgs(["gateway", "--bogus", "x"]);
     expect(r.strippedArgs).toEqual(["gateway", "--bogus", "x"]);
@@ -74,19 +87,34 @@ describe("resolveSpendContext", () => {
     expect(ctx.json).toBe(true);
     expect(ctx.gatewayKey).toBeUndefined();
   });
-  it("defaults when no flags", () => {
+  it("defaults to the Bifrost source + base when no flags", () => {
     const ctx = resolveSpendContext(parseContextArgs([]));
-    expect(ctx.gatewayBase).toBe("http://127.0.0.1:4000");
+    expect(ctx.gatewaySource).toBe("bifrost");
+    expect(ctx.gatewayBase).toBe("http://127.0.0.1:8090");
     expect(ctx.cursorCapUsd).toBe(50);
     expect(ctx.json).toBe(false);
+  });
+  it("flips the default base to :4000 when source=litellm", () => {
+    const ctx = resolveSpendContext(parseContextArgs(["--gateway-source", "litellm"]));
+    expect(ctx.gatewaySource).toBe("litellm");
+    expect(ctx.gatewayBase).toBe("http://127.0.0.1:4000");
+  });
+  it("--gateway overrides the source default base", () => {
+    const ctx = resolveSpendContext(
+      parseContextArgs(["--gateway-source", "litellm", "--gateway", "http://h:5"]),
+    );
+    expect(ctx.gatewaySource).toBe("litellm");
+    expect(ctx.gatewayBase).toBe("http://h:5");
   });
 });
 
 describe("requireGatewayKey", () => {
   it("throws AUTH_REQUIRED when no key", () => {
     const ctx: SpendContext = {
+      gatewaySource: "litellm",
       gatewayBase: "http://h",
       gatewayKey: undefined,
+      bifrostKey: undefined,
       cursorCapUsd: 50,
       json: false,
     };
@@ -94,8 +122,10 @@ describe("requireGatewayKey", () => {
   });
   it("returns validated base+key when present", () => {
     const ctx: SpendContext = {
+      gatewaySource: "litellm",
       gatewayBase: "http://h",
       gatewayKey: "sk-x",
+      bifrostKey: undefined,
       cursorCapUsd: 50,
       json: false,
     };
@@ -111,10 +141,19 @@ describe("rejectUnknownFlags (AXI P6: fail loud on unknown flags)", () => {
     expect(() => rejectUnknownFlags(["--json"], ["--json"], "gateway")).not.toThrow();
   });
 
-  it("allows the --gateway / --cursor-cap / --json / --help globals even when not declared known", () => {
+  it("allows the --gateway / --gateway-source / --cursor-cap / --json / --help globals even when not declared known", () => {
     expect(() =>
       rejectUnknownFlags(
-        ["--gateway", "http://h", "--cursor-cap", "60", "--json", "--help"],
+        [
+          "--gateway",
+          "http://h",
+          "--gateway-source",
+          "bifrost",
+          "--cursor-cap",
+          "60",
+          "--json",
+          "--help",
+        ],
         [],
         "gateway",
       ),

@@ -5,18 +5,25 @@ import { join } from "node:path";
 import {
   DEFAULT_CURSOR_CAP_USD,
   DEFAULT_GATEWAY,
+  DEFAULT_BIFROST_GATEWAY,
+  DEFAULT_LITELLM_GATEWAY,
+  DEFAULT_GATEWAY_SOURCE,
   cursorDbPath,
   gatewayKeyFilePath,
   quotaAxiBin,
+  resolveBifrostKey,
   resolveCursorCapUsd,
   resolveGatewayBase,
   resolveGatewayKey,
+  resolveGatewaySource,
   resolveJson,
 } from "./config.js";
 
 const ENV_VARS = [
   "SPEND_AXI_GATEWAY",
+  "SPEND_AXI_GATEWAY_SOURCE",
   "SPEND_AXI_GATEWAY_KEY",
+  "SPEND_AXI_BIFROST_KEY",
   "LITELLM_MASTER_KEY",
   "SPEND_AXI_CURSOR_CAP_USD",
   "SPEND_AXI_JSON",
@@ -47,18 +54,54 @@ beforeEach(() => {
   process.env["SPEND_AXI_CONFIG_DIR"] = NO_KEY_FILE;
 });
 
+describe("resolveGatewaySource", () => {
+  it("flag wins over env and default", () => {
+    process.env["SPEND_AXI_GATEWAY_SOURCE"] = "litellm";
+    expect(resolveGatewaySource("bifrost")).toBe("bifrost");
+  });
+  it("env fallback", () => {
+    process.env["SPEND_AXI_GATEWAY_SOURCE"] = "litellm";
+    expect(resolveGatewaySource()).toBe("litellm");
+  });
+  it("default bifrost", () => {
+    expect(resolveGatewaySource()).toBe(DEFAULT_GATEWAY_SOURCE);
+    expect(DEFAULT_GATEWAY_SOURCE).toBe("bifrost");
+  });
+  it("rejects an invalid env value instead of silently falling back", () => {
+    process.env["SPEND_AXI_GATEWAY_SOURCE"] = "gemini";
+    expect(() => resolveGatewaySource()).toThrow(/Invalid SPEND_AXI_GATEWAY_SOURCE/);
+  });
+});
+
 describe("resolveGatewayBase", () => {
   it("flag wins over env and default", () => {
     process.env["SPEND_AXI_GATEWAY"] = "http://env:4000";
-    expect(resolveGatewayBase("http://flag:4000")).toBe("http://flag:4000");
+    expect(resolveGatewayBase("http://flag:4000", "bifrost")).toBe("http://flag:4000");
   });
-  it("env wins over default", () => {
+  it("env wins over source default", () => {
     process.env["SPEND_AXI_GATEWAY"] = "http://env:4000";
-    expect(resolveGatewayBase()).toBe("http://env:4000");
+    expect(resolveGatewayBase(undefined, "bifrost")).toBe("http://env:4000");
   });
-  it("falls back to default", () => {
-    expect(resolveGatewayBase()).toBe(DEFAULT_GATEWAY);
-    expect(DEFAULT_GATEWAY).toBe("http://127.0.0.1:4000");
+  it("bifrost source default → :8090", () => {
+    expect(resolveGatewayBase(undefined, "bifrost")).toBe(DEFAULT_BIFROST_GATEWAY);
+    expect(DEFAULT_BIFROST_GATEWAY).toBe("http://127.0.0.1:8090");
+  });
+  it("litellm source default → :4000", () => {
+    expect(resolveGatewayBase(undefined, "litellm")).toBe(DEFAULT_LITELLM_GATEWAY);
+    expect(DEFAULT_LITELLM_GATEWAY).toBe("http://127.0.0.1:4000");
+  });
+  it("DEFAULT_GATEWAY points at bifrost", () => {
+    expect(DEFAULT_GATEWAY).toBe(DEFAULT_BIFROST_GATEWAY);
+  });
+});
+
+describe("resolveBifrostKey", () => {
+  it("returns env value when set", () => {
+    process.env["SPEND_AXI_BIFROST_KEY"] = "sk-bf-xyz";
+    expect(resolveBifrostKey()).toBe("sk-bf-xyz");
+  });
+  it("undefined when env absent", () => {
+    expect(resolveBifrostKey()).toBeUndefined();
   });
 });
 

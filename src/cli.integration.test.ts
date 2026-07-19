@@ -16,7 +16,9 @@ vi.mock("axi-sdk-js", async (importOriginal) => {
 
 const ENV_VARS = [
   "SPEND_AXI_GATEWAY",
+  "SPEND_AXI_GATEWAY_SOURCE",
   "SPEND_AXI_GATEWAY_KEY",
+  "SPEND_AXI_BIFROST_KEY",
   "LITELLM_MASTER_KEY",
   "SPEND_AXI_CURSOR_CAP_USD",
   "SPEND_AXI_JSON",
@@ -83,6 +85,7 @@ describe("main (in-process, offline)", () => {
     expect(text).toContain("usage:");
     expect(text).toContain("commands[4]:");
     expect(text).toContain("--gateway");
+    expect(text).toContain("--gateway-source");
     expect(text).toContain("--cursor-cap");
     expect(text).toContain("built-in");
   });
@@ -94,7 +97,7 @@ describe("main (in-process, offline)", () => {
     expect(text).toContain("bin:");
     expect(text).toContain(DESCRIPTION);
     expect(text).toContain("headline:");
-    expect(text).toContain("gateway down");
+    expect(text).toContain("bifrost down");
     expect(text).toContain("cursor not-wired");
     expect(text).toContain("subscriptions:");
     // quota-axi binary missing → subscriptions error surfaces
@@ -125,7 +128,7 @@ describe("main (in-process, offline)", () => {
     await main({ argv: ["--json"], stdout: out.stdout });
     const text = out.chunks.join("");
     const parsed = JSON.parse(text);
-    expect(parsed["headline"]).toContain("gateway down");
+    expect(parsed["headline"]).toContain("bifrost down");
     expect(parsed["gateway"]).toBeDefined();
     expect(parsed["cursor"]).toBeDefined();
     expect(parsed["cursor"]["status"]).toBe("not-wired");
@@ -170,6 +173,100 @@ describe("main (in-process, offline)", () => {
     expect(text).toContain("name: spend-axi");
     expect(text).toContain("user-invocable: false");
     expect(text).toContain("## Commands");
+  });
+});
+
+describe("context-resolution errors render structured output instead of crashing (regression)", () => {
+  it("renders VALIDATION_ERROR for an invalid --gateway-source flag instead of throwing", async () => {
+    const out = capture();
+    await expect(
+      main({ argv: ["--gateway-source", "gemini"], stdout: out.stdout }),
+    ).resolves.toBeUndefined();
+    const text = out.chunks.join("");
+    expect(text).toContain("error:");
+    expect(text).toContain("code: VALIDATION_ERROR");
+    expect(text).toContain("Invalid --gateway-source value");
+  });
+
+  it("renders VALIDATION_ERROR for an invalid --cursor-cap flag instead of throwing", async () => {
+    const out = capture();
+    await expect(
+      main({ argv: ["--cursor-cap", "abc"], stdout: out.stdout }),
+    ).resolves.toBeUndefined();
+    const text = out.chunks.join("");
+    expect(text).toContain("error:");
+    expect(text).toContain("code: VALIDATION_ERROR");
+    expect(text).toContain("Invalid --cursor-cap value");
+  });
+
+  it("renders VALIDATION_ERROR for an invalid SPEND_AXI_GATEWAY_SOURCE env value instead of throwing", async () => {
+    process.env["SPEND_AXI_GATEWAY_SOURCE"] = "gemini";
+    try {
+      const out = capture();
+      await expect(main({ argv: ["--help"], stdout: out.stdout })).resolves.toBeUndefined();
+      const text = out.chunks.join("");
+      expect(text).toContain("error:");
+      expect(text).toContain("code: VALIDATION_ERROR");
+      expect(text).toContain("Invalid SPEND_AXI_GATEWAY_SOURCE value");
+    } finally {
+      delete process.env["SPEND_AXI_GATEWAY_SOURCE"];
+    }
+  });
+});
+
+describe("bifrost AUTH_REQUIRED hints (regression, review round)", () => {
+  interface MockResponse {
+    status: number;
+    body: string;
+  }
+
+  function makeResponse(spec: MockResponse): Response {
+    return {
+      status: spec.status,
+      ok: spec.status >= 200 && spec.status < 300,
+      text: () => Promise.resolve(spec.body),
+    } as Response;
+  }
+
+  function bifrostLockedDownFetch(): typeof fetch {
+    return ((url: string) => {
+      if (url.endsWith("/health")) {
+        return Promise.resolve(
+          makeResponse({ status: 200, body: JSON.stringify({ status: "ok" }) }),
+        );
+      }
+      if (url.endsWith("/api/governance/model-configs")) {
+        return Promise.resolve(
+          makeResponse({
+            status: 401,
+            body: JSON.stringify({ error: { message: "unauthorized" } }),
+          }),
+        );
+      }
+      return Promise.resolve(makeResponse({ status: 200, body: "" }));
+    }) as unknown as typeof fetch;
+  }
+
+  afterEach(() => {
+    setFetchImpl(null);
+  });
+
+  it("surfaces a SPEND_AXI_BIFROST_KEY hint on `gateway` when the management API is locked down", async () => {
+    setFetchImpl(bifrostLockedDownFetch());
+    const out = capture();
+    await main({ argv: ["gateway"], stdout: out.stdout });
+    const text = out.chunks.join("");
+    expect(text).toContain("error_code: AUTH_REQUIRED");
+    expect(text).toContain("SPEND_AXI_BIFROST_KEY");
+    expect(text).not.toContain("LiteLLM gateway rejected the key");
+  });
+
+  it("surfaces a SPEND_AXI_BIFROST_KEY hint on the home snapshot too", async () => {
+    setFetchImpl(bifrostLockedDownFetch());
+    const out = capture();
+    await main({ argv: [], stdout: out.stdout });
+    const text = out.chunks.join("");
+    expect(text).toContain("SPEND_AXI_BIFROST_KEY");
   });
 });
 

@@ -65,11 +65,27 @@ export function relativeTime(iso: string | undefined | null): string {
   return `${Math.floor(diffMon / 12)}y ago`;
 }
 
+/** Gateway source: `bifrost` (live, audit 7) or `litellm` (stopped-not-deleted fallback). */
+export type GatewaySource = "bifrost" | "litellm";
+
+/** Per-model cumulative usage row (Bifrost /metrics only; LiteLLM source omits). */
+export interface GatewayModelUsage {
+  provider: string;
+  model: string;
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+}
+
 /** Gateway view: plain serializable data for both TOON rendering and --json. */
 export interface GatewayView {
+  source: GatewaySource;
   base: string;
   reachable: boolean;
   auth: boolean;
+  /** Describes the spend window `todayTotalUsd` represents ("1d" for Bifrost, "today UTC" for LiteLLM). */
+  window: string;
   todayTotalUsd: number | null;
   providers: Array<{
     name: string;
@@ -78,15 +94,19 @@ export interface GatewayView {
     pctUsed: number;
     reset: string | null;
   }>;
+  /** Per-model cumulative usage (Bifrost only). Empty array when source has no per-model surface. */
+  models: GatewayModelUsage[];
   error?: { code: string; message: string };
 }
 
 /** Plain (serializable) gateway detail block for TOON + --json. */
 export function gatewayPlain(view: GatewayView): Record<string, unknown> {
   const out: Record<string, unknown> = {
+    source: view.source,
     base: view.base,
     reachable: view.reachable ? "yes" : "no",
     auth: view.auth ? "yes" : "no",
+    window: view.window,
     today_total_usd: formatUsd(view.todayTotalUsd),
   };
   if (view.error) {
@@ -104,6 +124,18 @@ export function gatewayProvidersPlain(view: GatewayView): Array<Record<string, u
     budget_usd: p.budgetUsd,
     pct_used: p.pctUsed,
     reset: p.reset ?? "—",
+  }));
+}
+
+/** Plain per-model cumulative usage rows (Bifrost) for TOON + --json. */
+export function gatewayModelsPlain(view: GatewayView): Array<Record<string, unknown>> {
+  return view.models.map((m) => ({
+    provider: m.provider,
+    model: m.model,
+    cost_usd: formatUsd(m.costUsd),
+    input_tokens: m.inputTokens,
+    output_tokens: m.outputTokens,
+    cache_read_tokens: m.cacheReadTokens,
   }));
 }
 

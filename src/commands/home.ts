@@ -67,17 +67,18 @@ function buildHeadline(subs: SubscriptionsResult, gw: GatewayView, cursor: Curso
 }
 
 function gatewayHeadline(gw: GatewayView): string {
-  if (!gw.reachable) return "gateway down";
+  if (!gw.reachable) return `${gw.source} down`;
   if (gw.error) {
-    if (gw.error.code === "AUTH_REQUIRED") return "gateway no-key";
-    return `gateway err:${gw.error.code}`;
+    if (gw.error.code === "AUTH_REQUIRED") return `${gw.source} no-key`;
+    if (gw.error.code === "NO_BUDGETS") return `${gw.source} no-budgets`;
+    return `${gw.source} err:${gw.error.code}`;
   }
   const today = formatUsd(gw.todayTotalUsd);
   const top = gw.providers[0];
   if (top && top.budgetUsd > 0) {
-    return `gateway $${today} today (${top.name} ${top.pctUsed}% of $${top.budgetUsd})`;
+    return `${gw.source} $${today} today (${top.name} ${top.pctUsed}% of $${top.budgetUsd})`;
   }
-  return `gateway $${today} today`;
+  return `${gw.source} $${today} today`;
 }
 
 function subscriptionsHeadline(subs: SubscriptionsResult): string {
@@ -101,9 +102,19 @@ function homeHints(subs: SubscriptionsResult, gw: GatewayView, cursor: CursorSna
     hints.push("Subscriptions unavailable — run `quota-axi` to diagnose");
   }
   if (!gw.reachable) {
-    hints.push("Gateway unreachable at " + gw.base + " — check the LiteLLM proxy is running");
-  } else if (!gw.auth) {
-    hints.push("Set SPEND_AXI_GATEWAY_KEY (or LITELLM_MASTER_KEY) to read gateway spend/budgets");
+    hints.push(`Gateway unreachable at ${gw.base} — check the ${gw.source} gateway is running`);
+  } else if (!gw.auth || (gw.error && gw.error.code === "AUTH_REQUIRED")) {
+    if (gw.source === "litellm") {
+      hints.push("Set SPEND_AXI_GATEWAY_KEY (or LITELLM_MASTER_KEY) to read gateway spend/budgets");
+    } else {
+      hints.push(
+        "Set SPEND_AXI_BIFROST_KEY to authenticate with the locked-down Bifrost management API",
+      );
+    }
+  } else if (gw.error && gw.error.code === "NO_BUDGETS") {
+    hints.push(
+      "No Bifrost governance budgets configured — POST to /api/governance/model-configs on the gateway",
+    );
   }
   if (!cursor.activity.dbPresent) {
     hints.push("No cursor usage DB at ~/.cursor/ai-tracking — activity signal unavailable");

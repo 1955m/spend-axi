@@ -2,7 +2,7 @@
   "name": "spend-axi",
   "version": "0.1.0",
   "private": true,
-  "description": "AXI-compliant spend-posture CLI — one compact snapshot of subscription windows + LiteLLM gateway daily spend + Cursor on-demand daily spend. Token-efficient TOON output.",
+  "description": "AXI-compliant spend-posture CLI — one compact snapshot of subscription windows + Bifrost gateway daily spend (LiteLLM fallback) + Cursor on-demand daily spend. Token-efficient TOON output.",
   "type": "module",
   "repository": {
     "type": "git",
@@ -10,6 +10,7 @@
   },
   "keywords": [
     "spend",
+    "bifrost",
     "litellm",
     "cursor",
     "quota",

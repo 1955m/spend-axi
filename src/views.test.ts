@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cursorPlain,
   formatUsd,
+  gatewayModelsPlain,
   gatewayPlain,
   gatewayProvidersPlain,
   nearestResetDate,
@@ -82,18 +83,23 @@ describe("nearestResetDate", () => {
 describe("gatewayPlain", () => {
   it("renders yes/no + formatted usd + error", () => {
     const view: GatewayView = {
+      source: "litellm",
       base: "http://h",
       reachable: true,
       auth: false,
+      window: "today UTC",
       todayTotalUsd: 11.33,
       providers: [],
+      models: [],
       error: { code: "AUTH_REQUIRED", message: "no key" },
     };
     const out = gatewayPlain(view);
     expect(out).toMatchObject({
+      source: "litellm",
       base: "http://h",
       reachable: "yes",
       auth: "no",
+      window: "today UTC",
       today_total_usd: "11.33",
       error: "no key",
       error_code: "AUTH_REQUIRED",
@@ -101,11 +107,14 @@ describe("gatewayPlain", () => {
   });
   it("omits error fields when none", () => {
     const out = gatewayPlain({
+      source: "bifrost",
       base: "http://h",
       reachable: true,
       auth: true,
+      window: "1d",
       todayTotalUsd: 5,
       providers: [],
+      models: [],
     });
     expect(out).not.toHaveProperty("error");
   });
@@ -114,14 +123,17 @@ describe("gatewayPlain", () => {
 describe("gatewayProvidersPlain", () => {
   it("maps provider rows with formatted spend", () => {
     const out = gatewayProvidersPlain({
+      source: "litellm",
       base: "http://h",
       reachable: true,
       auth: true,
+      window: "today UTC",
       todayTotalUsd: 1,
       providers: [
         { name: "openai", spendUsd: 131.21, budgetUsd: 200, pctUsed: 66, reset: "2083-01-30" },
         { name: "cohere", spendUsd: 0, budgetUsd: 20, pctUsed: 0, reset: null },
       ],
+      models: [],
     });
     expect(out).toEqual([
       {
@@ -133,6 +145,53 @@ describe("gatewayProvidersPlain", () => {
       },
       { provider: "cohere", spend_usd: "0.00", budget_usd: 20, pct_used: 0, reset: "—" },
     ]);
+  });
+});
+
+describe("gatewayModelsPlain", () => {
+  it("maps per-model cumulative usage rows", () => {
+    const out = gatewayModelsPlain({
+      source: "bifrost",
+      base: "http://h",
+      reachable: true,
+      auth: true,
+      window: "1d",
+      todayTotalUsd: 5,
+      providers: [],
+      models: [
+        {
+          provider: "dashscope",
+          model: "glm-5.2",
+          costUsd: 4.98,
+          inputTokens: 1000,
+          outputTokens: 500,
+          cacheReadTokens: 200,
+        },
+      ],
+    });
+    expect(out).toEqual([
+      {
+        provider: "dashscope",
+        model: "glm-5.2",
+        cost_usd: "4.98",
+        input_tokens: 1000,
+        output_tokens: 500,
+        cache_read_tokens: 200,
+      },
+    ]);
+  });
+  it("empty models -> empty array (definitive empty state)", () => {
+    const out = gatewayModelsPlain({
+      source: "bifrost",
+      base: "http://h",
+      reachable: true,
+      auth: true,
+      window: "1d",
+      todayTotalUsd: 0,
+      providers: [],
+      models: [],
+    });
+    expect(out).toEqual([]);
   });
 });
 

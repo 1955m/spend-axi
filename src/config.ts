@@ -3,10 +3,36 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 /**
- * Default LiteLLM gateway base. The local proxy listens on 127.0.0.1:4000.
- * Override with SPEND_AXI_GATEWAY env (or the --gateway flag, which wins).
+ * Default LiteLLM gateway base. Kept as the fallback source's default base
+ * (the LiteLLM proxy listens on 127.0.0.1:4000). The active default gateway is
+ * now Bifrost at 127.0.0.1:8090 (see DEFAULT_BIFROST_GATEWAY / audit 7).
  */
-export const DEFAULT_GATEWAY = "http://127.0.0.1:4000";
+export const DEFAULT_LITELLM_GATEWAY = "http://127.0.0.1:4000";
+
+/**
+ * Default Bifrost gateway base. The live gateway moved here on 2026-07-19
+ * (LiteLLM STOPPED-not-deleted; see projects/stack/ai/bifrost/CUTOVER.md).
+ * Management API is unauthenticated on this host (auth_config.is_enabled=false).
+ */
+export const DEFAULT_BIFROST_GATEWAY = "http://127.0.0.1:8090";
+
+/**
+ * Active default gateway base. Points at Bifrost now that LiteLLM is stopped.
+ * Override with SPEND_AXI_GATEWAY env (or the --gateway flag, which wins).
+ * `--gateway-source litellm` flips the default back to DEFAULT_LITELLM_GATEWAY
+ * without forcing the user to also pass `--gateway`.
+ */
+export const DEFAULT_GATEWAY = DEFAULT_BIFROST_GATEWAY;
+
+/**
+ * Default gateway source. `bifrost` (live gateway at :8090, governance budgets
+ * API) is the default; `litellm` keeps the legacy /provider/budgets +
+ * /global/spend/logs path alive while the LiteLLM container is stopped-not-
+ * deleted (audit 7). Override with SPEND_AXI_GATEWAY_SOURCE / --gateway-source.
+ */
+export const DEFAULT_GATEWAY_SOURCE = "bifrost" as const;
+
+export type GatewaySource = "bifrost" | "litellm";
 
 /**
  * Cursor on-demand daily spend cap (USD). The captain mandates keeping cursor
@@ -17,19 +43,46 @@ export const DEFAULT_CURSOR_CAP_USD = 50;
 
 /** Environment variables read for runtime config (kept named for tests). */
 export const GATEWAY_ENV = "SPEND_AXI_GATEWAY";
+export const GATEWAY_SOURCE_ENV = "SPEND_AXI_GATEWAY_SOURCE";
 export const GATEWAY_KEY_ENV = "SPEND_AXI_GATEWAY_KEY";
 export const GATEWAY_KEY_FALLBACK_ENV = "LITELLM_MASTER_KEY";
+export const BIFROST_KEY_ENV = "SPEND_AXI_BIFROST_KEY";
 export const CURSOR_CAP_ENV = "SPEND_AXI_CURSOR_CAP_USD";
 export const JSON_ENV = "SPEND_AXI_JSON";
 export const CONFIG_DIR_ENV = "SPEND_AXI_CONFIG_DIR";
 
-/** Resolve the gateway base URL: --gateway flag > SPEND_AXI_GATEWAY env > default. */
-export function resolveGatewayBase(flagValue?: string): string {
+/**
+ * Resolve the gateway source: --gateway-source > env > default bifrost.
+ * A bad --gateway-source flag is already rejected upstream in context.ts's
+ * parseContextArgs (VALIDATION_ERROR); an invalid SPEND_AXI_GATEWAY_SOURCE
+ * env value is rejected here for the same fail-loud reason (mirrors
+ * resolveCursorCapUsd, which validates both its flag and its env value).
+ */
+export function resolveGatewaySource(flagValue?: string): GatewaySource {
+  const v = (flagValue ?? "").trim().toLowerCase();
+  if (v === "bifrost" || v === "litellm") return v;
+  const env = (process.env[GATEWAY_SOURCE_ENV] ?? "").trim().toLowerCase();
+  if (env === "bifrost" || env === "litellm") return env;
+  if (env) {
+    throw new Error(
+      `Invalid ${GATEWAY_SOURCE_ENV} value: ${env} (expected 'bifrost' or 'litellm')`,
+    );
+  }
+  return DEFAULT_GATEWAY_SOURCE;
+}
+
+/**
+ * Resolve the gateway base URL: --gateway flag > SPEND_AXI_GATEWAY env >
+ * source default (bifrost→:8090, litellm→:4000). The source default only
+ * applies when the user did not pin a base explicitly, so `--gateway-source
+ * litellm` repoints at :4000 without also requiring `--gateway`.
+ */
+export function resolveGatewayBase(flagValue: string | undefined, source: GatewaySource): string {
   const v = (flagValue ?? "").trim();
   if (v) return v;
   const env = (process.env[GATEWAY_ENV] ?? "").trim();
   if (env) return env;
-  return DEFAULT_GATEWAY;
+  return source === "litellm" ? DEFAULT_LITELLM_GATEWAY : DEFAULT_BIFROST_GATEWAY;
 }
 
 /**
@@ -69,6 +122,17 @@ export function resolveJson(flagPresent: boolean): boolean {
   if (flagPresent) return true;
   const v = (process.env[JSON_ENV] ?? "").trim().toLowerCase();
   return v === "1" || v === "true" || v === "yes";
+}
+
+/**
+ * Resolve the optional Bifrost management API key. The Bifrost governance
+ * endpoints are unauthenticated on this host (auth_config.is_enabled=false),
+ * so this is almost always undefined; it only matters if that flag ever flips
+ * to true. Priority: SPEND_AXI_BIFROST_KEY env (only). Never logged.
+ */
+export function resolveBifrostKey(): string | undefined {
+  const env = (process.env[BIFROST_KEY_ENV] ?? "").trim();
+  return env || undefined;
 }
 
 /** Path to the gateway-key file (~/.config/spend-axi/gateway-key). */

@@ -5,7 +5,7 @@ import { renderError, renderHelp, renderOutput } from "../toon.js";
 export const SETUP_HELP = `usage: spend-axi setup <action>
 Install agent SessionStart hooks for ambient context.
   setup hooks               install/repair Claude Code, Codex, and OpenCode hooks
-flags: --help (always); --gateway / --cursor-cap / --json (global, after the command)
+flags: --help (always); --gateway-source / --gateway / --cursor-cap / --json (global, after the command)
 examples:
   spend-axi setup hooks`;
 

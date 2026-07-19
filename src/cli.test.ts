@@ -17,6 +17,12 @@ describe("top-level help", () => {
     expect(TOP_HELP).toContain("--json");
   });
 
+  it("documents the gateway source selection", () => {
+    expect(TOP_HELP).toContain("--gateway-source");
+    expect(TOP_HELP).toContain("bifrost");
+    expect(TOP_HELP).toContain("litellm");
+  });
+
   it("documents the gateway key resolution path", () => {
     expect(TOP_HELP).toContain("SPEND_AXI_GATEWAY_KEY");
     expect(TOP_HELP).toContain("LITELLM_MASTER_KEY");

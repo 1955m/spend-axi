@@ -17,6 +17,13 @@ function getFetch(): SpendFetch {
   return injectedFetch ?? fetch;
 }
 
+/**
+ * Read the live fetch implementation (the injected test seam if set, else the
+ * global). Shared with bifrost.ts so both gateway sources honor the same
+ * `setFetchImpl(null)` test seam (tests stub one transport for both sources).
+ */
+export { getFetch };
+
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export interface GatewayRequestOptions {
@@ -93,7 +100,7 @@ async function gatewayGet<T>(
   }
   const text = await response.text().catch(() => "");
   if (!response.ok) {
-    throw mapGatewayError(response.status, text, label);
+    throw mapGatewayError(response.status, text, label, "litellm");
   }
   if (text.length === 0) {
     throw new AxiError(`LiteLLM gateway returned an empty response for ${label}`, "UNKNOWN");
